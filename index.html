@@ -130,7 +130,7 @@ select, input{font-family:inherit;}
 .tb-right{font-size:12px; color:var(--text-3); display:flex; align-items:center; gap:8px;}
 .tb-right .badge-live{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-soft);}
 
-.content{padding:28px 28px 60px;}
+.content{padding:28px 28px 90px;}
 .page-head{margin-bottom:22px;}
 .page-head h1{font-size:23px; font-weight:800; letter-spacing:-0.01em; margin-bottom:5px;}
 .page-head p{color:var(--text-2); font-size:13.5px;}
@@ -204,6 +204,22 @@ tbody tr:hover{background:#FAFBFF;}
 .unit-row .name{flex:1; color:var(--text-1); font-weight:500; padding-right:10px;}
 .unit-row .val{color:var(--text-2); font-weight:600;}
 
+.app-footer{
+  position:fixed; left:0; right:0; bottom:0; z-index:60;
+  background:var(--panel); border-top:1px solid var(--border);
+  box-shadow:0 -6px 16px -8px rgba(20,25,50,0.10);
+  padding:13px 28px;
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+  font-size:12px; color:var(--text-3);
+}
+.af-left{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.af-name{font-weight:700; color:var(--text-2);}
+.af-sep{color:#D6DAE6;}
+.af-right{font-weight:500; color:var(--text-3);}
+@media (max-width:600px){
+  .app-footer{flex-direction:column; align-items:flex-start; padding:12px 18px;}
+}
+
 @media (max-width:1080px){
   .cards-grid{grid-template-columns:repeat(2,1fr);}
   .bottom-grid{grid-template-columns:1fr;}
@@ -211,7 +227,7 @@ tbody tr:hover{background:#FAFBFF;}
 @media (max-width:720px){
   .sidebar{position:fixed; z-index:100; box-shadow:0 0 0 2000px rgba(0,0,0,0.35);}
   .cards-grid{grid-template-columns:1fr;}
-  .content{padding:18px;}
+  .content{padding:18px 18px 110px;}
 }
 </style>
 </head>
@@ -364,6 +380,17 @@ tbody tr:hover{background:#FAFBFF;}
           <div id="unitList"></div>
         </div>
       </div>
+
+      <footer class="app-footer">
+        <div class="af-left">
+          <span class="af-name">Ryan P. Harianja</span>
+          <span class="af-sep">·</span>
+          <span>Bagian Organisasi Sekretariat Daerah Kabupaten Indragiri Hulu</span>
+          <span class="af-sep">·</span>
+          <span>2026</span>
+        </div>
+        <div class="af-right">Dashboard Manajemen ASN Digital</div>
+      </footer>
     </div>
   </div>
 </div>
