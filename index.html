@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Komposisi ASN & Literasi Digital</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+            transition: all 0.3s ease;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- Top Navigation Bar -->
+    <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+                        <i data-lucide="layout-dashboard" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg text-white tracking-wide">DASHBOARD ASN DIGITAL</h1>
+                        <p class="text-xs text-slate-400">Komposisi Kategori ASN & Tingkat Literasi Digital</p>
+                    </div>
+                </div>
+
+                <!-- Right Actions: Upload Excel & Reset -->
+                <div class="flex items-center space-x-3">
+                    <label class="cursor-pointer flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform active:scale-95">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Upload Excel</span>
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+                    </label>
+                    <button onclick="resetData()" title="Reset ke Data Default" class="p-2.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+
+        <!-- Header Info Bar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 glass-card rounded-2xl">
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1.5 animate-pulse"></span> Dynamic Data Active
+                    </span>
+                    <span id="dataStatusBadge" class="text-xs text-slate-400">Sumber: Data Bawaan (7,603 ASN)</span>
+                </div>
+                <h2 class="text-xl font-bold text-white mt-1">Gambaran Umum Talenta Digital ASN</h2>
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- Quick Filter Dropdown -->
+                <div class="flex items-center bg-slate-800/80 rounded-xl px-3 py-1.5 border border-slate-700/60">
+                    <i data-lucide="filter" class="w-4 h-4 text-slate-400 mr-2"></i>
+                    <select id="kategoriFilter" onchange="applyFilters()" class="bg-transparent text-xs text-slate-200 focus:outline-none cursor-pointer pr-2">
+                        <option value="ALL" class="bg-slate-900 text-slate-200">Semua Kategori ASN</option>
+                        <option value="ASN TIK" class="bg-slate-900 text-slate-200">ASN TIK</option>
+                        <option value="ASN Non-TIK" class="bg-slate-900 text-slate-200">ASN Non-TIK</option>
+                        <option value="ASN Non-TIK Spesifik" class="bg-slate-900 text-slate-200">ASN Non-TIK Spesifik</option>
+                        <option value="ASN Manajerial" class="bg-slate-900 text-slate-200">ASN Manajerial</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Total ASN -->
+            <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total ASN</span>
+                    <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <p id="kpiTotalASN" class="text-2xl font-extrabold text-white mt-3">7,603</p>
+                <p class="text-[11px] text-slate-400 mt-1">Pegawai terdata</p>
+            </div>
+
+            <!-- ASN TIK -->
+            <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">ASN TIK</span>
+                    <div class="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg">
+                        <i data-lucide="cpu" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <p id="kpiASNTIK" class="text-2xl font-extrabold text-cyan-400 mt-3">99</p>
+                <p id="kpiPctTIK" class="text-[11px] text-slate-400 mt-1">1.3% dari Total</p>
+            </div>
+
+            <!-- ASN Non-TIK Spesifik -->
+            <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Non-TIK Spesifik</span>
+                    <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <p id="kpiASNTIKSpesifik" class="text-2xl font-extrabold text-indigo-400 mt-3">20</p>
+                <p id="kpiPctTIKSpesifik" class="text-[11px] text-slate-400 mt-1">0.3% dari Total</p>
+            </div>
+
+            <!-- ASN Manajerial -->
+            <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">ASN Manajerial</span>
+                    <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
+                        <i data-lucide="briefcase" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <p id="kpiASNManajerial" class="text-2xl font-extrabold text-amber-400 mt-3">482</p>
+                <p id="kpiPctManajerial" class="text-[11px] text-slate-400 mt-1">6.3% dari Total</p>
+            </div>
+
+            <!-- Optimal Literasi -->
+            <div class="glass-card p-5 rounded-2xl relative overflow-hidden group border-emerald-500/20">
+                <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Optimal Literasi</span>
+                    <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <p id="kpiOptimal" class="text-2xl font-extrabold text-emerald-400 mt-3">466</p>
+                <p id="kpiPctOptimal" class="text-[11px] text-emerald-400/80 mt-1">6.1% Sangat Optimal</p>
+            </div>
+        </div>
+
+        <!-- Section 1: Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Pie Chart: Komposisi Kategori ASN -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Komposisi Kategori ASN</h3>
+                        <p class="text-xs text-slate-400">Proporsi Kategori Jabatan</p>
+                    </div>
+                    <div class="p-2 bg-slate-800 rounded-lg text-slate-400">
+                        <i data-lucide="pie-chart" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="relative h-64 flex items-center justify-center">
+                    <canvas id="chartKomposisi"></canvas>
+                </div>
+            </div>
+
+            <!-- Bar Chart: Literasi Digital per Kategori -->
+            <div class="glass-card p-6 rounded-2xl lg:col-span-2">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Status Literasi Digital per Kategori ASN</h3>
+                        <p class="text-xs text-slate-400">Perbandingan Status Optimal vs Belum Optimal</p>
+                    </div>
+                    <div class="p-2 bg-slate-800 rounded-lg text-slate-400">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="relative h-64">
+                    <canvas id="chartLiterasiKategori"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Section 2: Detailed Charts & Analytics -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Bar Chart: Literasi Berdasarkan Jenis Jabatan -->
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Literasi Digital per Jenis Jabatan</h3>
+                        <p class="text-xs text-slate-400">Struktural, Fungsional, Pelaksana</p>
+                    </div>
+                    <div class="p-2 bg-slate-800 rounded-lg text-slate-400">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="relative h-64">
+                    <canvas id="chartJenisJabatan"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 10 Unit Kerja / UNOR Literasi Optimal -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Top 8 Unit Kerja (UNOR) Dengan Literasi Optimal</h3>
+                            <p class="text-xs text-slate-400">Unit kerja dengan jumlah ASN Literasi Optimal terbanyak</p>
+                        </div>
+                        <div class="p-2 bg-slate-800 rounded-lg text-slate-400">
+                            <i data-lucide="building-2" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="relative h-64">
+                        <canvas id="chartTopUnor"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="glass-card rounded-2xl p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-base font-bold text-white">Detail Data ASN Digital</h3>
+                    <p class="text-xs text-slate-400">Tabel rinci data pegawai & status literasi digital</p>
+                </div>
+                
+                <!-- Search & Filter Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari Nama, NIP, Jabatan..." class="bg-slate-800 text-xs text-white pl-9 pr-4 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-cyan-500 w-48 sm:w-64">
+                    </div>
+                    <select id="literasiFilter" onchange="renderTable()" class="bg-slate-800 text-xs text-white px-3 py-2 rounded-xl border border-slate-700 focus:outline-none cursor-pointer">
+                        <option value="ALL">Semua Literasi</option>
+                        <option value="Optimal">Optimal</option>
+                        <option value="Belum Optimal">Belum Optimal</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-slate-400 border-b border-slate-800 bg-slate-800/40">
+                            <th class="py-3 px-4 rounded-l-lg">NAMA & NIP</th>
+                            <th class="py-3 px-4">JABATAN</th>
+                            <th class="py-3 px-4">KATEGORI ASN</th>
+                            <th class="py-3 px-4">UNIT KERJA (UNOR)</th>
+                            <th class="py-3 px-4 text-center rounded-r-lg">LITERASI DIGITAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="asnTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+                        <!-- Dynamic rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="flex items-center justify-between pt-4 mt-2 text-xs text-slate-400">
+                <span id="tableInfo">Menampilkan 1 - 10 dari 7,603 data</span>
+                <div class="flex items-center space-x-2">
+                    <button id="btnPrev" onclick="changePage(-1)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                    <span id="pageIndicator" class="px-2 text-slate-300 font-medium">Page 1</span>
+                    <button id="btnNext" onclick="changePage(1)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Embedded Initial Data (Fallback) -->
+    <script>
+        // Sample data subset for instant rendering without upload
+        const sampleData = [
+            {"NAMA": "ZULFAHMI ADRIAN", "NIP": "197507151993111001", "GELAR DEPAN": "", "GELAR BELAKANG": "AP, M.Si", "GOL AKHIR": "IV/d", "JENIS JABATAN": "Jabatan Struktural", "JABATAN": "SEKRETARIS DAERAH", "PENDIDIKAN": "S-2 SOSIOLOGI", "UNOR": "SEKRETARIAT DAERAH - PEMERINTAH KABUPATEN INDRAGIRI HULU", "KATEGORI": "ASN Manajerial", "LITERASI DIGITAL": "Optimal"},
+            {"NAMA": "M AMIN YUNUS", "NIP": "196210081989011001", "GELAR DEPAN": "dr. H.", "GELAR BELAKANG": "Sp.PD", "GOL AKHIR": "IV/e", "JENIS JABATAN": "Jabatan Fungsional", "JABATAN": "Dokter Ahli Utama", "PENDIDIKAN": "KEDOKTERAN SPESIALIS PENYAKIT DALAM", "UNOR": "UPTD RUMAH SAKIT UMUM DAERAH - DINAS KESEHATAN", "KATEGORI": "ASN Non-TIK", "LITERASI DIGITAL": "Belum Optimal"},
+            {"NAMA": "ELVI TRIANA RESWITA", "NIP": "197002132007012007", "GELAR DEPAN": "drg.", "GELAR BELAKANG": "", "GOL AKHIR": "IV/c", "JENIS JABATAN": "Jabatan Fungsional", "JABATAN": "Dokter Gigi Ahli Madya", "PENDIDIKAN": "S-1 KEDOKTERAN GIGI", "UNOR": "UPT PUSKESMAS SEI LALA - DINAS KESEHATAN", "KATEGORI": "ASN Non-TIK", "LITERASI DIGITAL": "Belum Optimal"},
+            {"NAMA": "SRI WINANGSIH", "NIP": "197606112006042015", "GELAR DEPAN": "", "GELAR BELAKANG": "S.Pi", "GOL AKHIR": "IV/c", "JENIS JABATAN": "Jabatan Struktural", "JABATAN": "KEPALA SEKSI KELEMBAGAAN", "PENDIDIKAN": "S-1 ILMU KELAUTAN", "UNOR": "SEKSI KELEMBAGAAN - DINAS PENDIDIKAN", "KATEGORI": "ASN Manajerial", "LITERASI DIGITAL": "Belum Optimal"},
+            {"NAMA": "RUDI HERMANTO", "NIP": "198803122011011002", "GELAR DEPAN": "", "GELAR BELAKANG": "S.Kom", "GOL AKHIR": "III/c", "JENIS JABATAN": "Jabatan Fungsional", "JABATAN": "Pranata Komputer Ahli Muda", "PENDIDIKAN": "S-1 TEKNIK INFORMATIKA", "UNOR": "DINAS KOMUNIKASI DAN INFORMATIKA", "KATEGORI": "ASN TIK", "LITERASI DIGITAL": "Optimal"},
+            {"NAMA": "AHLI DATA ANALYST", "NIP": "199205102018021005", "GELAR DEPAN": "", "GELAR BELAKANG": "S.Si", "GOL AKHIR": "III/b", "JENIS JABATAN": "Jabatan Pelaksana", "JABATAN": "Pengelola Data Sistem Informasi", "PENDIDIKAN": "S-1 STATISTIKA", "UNOR": "DINAS KOMUNIKASI DAN INFORMATIKA", "KATEGORI": "ASN Non-TIK Spesifik", "LITERASI DIGITAL": "Optimal"}
+        ];
+
+        // Global State
+        let rawData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const pageSize = 8;
+
+        // Chart instances
+        let chartKomposisiInst = null;
+        let chartLiterasiKategoriInst = null;
+        let chartJenisJabatanInst = null;
+        let chartTopUnorInst = null;
+
+        // Initialize icons & default data
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            // Default counts if no file uploaded
+            generateMockFullData();
+            updateDashboard();
+        });
+
+        // Generate dynamic complete dataset based on real Excel distributions
+        function generateMockFullData() {
+            rawData = [];
+            
+            const counts = [
+                { cat: 'ASN Non-TIK', opt: 236, nonOpt: 6766, jabOpt: {'Jabatan Fungsional': 180, 'Jabatan Pelaksana': 50, 'Jabatan Struktural': 6} },
+                { cat: 'ASN Manajerial', opt: 221, nonOpt: 261, jabOpt: {'Jabatan Fungsional': 10, 'Jabatan Pelaksana': 11, 'Jabatan Struktural': 200} },
+                { cat: 'ASN TIK', opt: 6, nonOpt: 93, jabOpt: {'Jabatan Fungsional': 4, 'Jabatan Pelaksana': 2, 'Jabatan Struktural': 0} },
+                { cat: 'ASN Non-TIK Spesifik', opt: 3, nonOpt: 17, jabOpt: {'Jabatan Fungsional': 2, 'Jabatan Pelaksana': 1, 'Jabatan Struktural': 0} }
+            ];
+
+            const unors = [
+                "DINAS KOMUNIKASI DAN INFORMATIKA",
+                "SEKRETARIAT DAERAH",
+                "BADAN KEPEGAWAIAN DAN HRD",
+                "UPTD RUMAH SAKIT UMUM DAERAH",
+                "DINAS PENDIDIKAN DAN KEBUDAYAAN",
+                "DINAS KESEHATAN",
+                "BADAN PERENCANAAN PEMBANGUNAN DAERAH",
+                "SATUAN POLISI PAMONG PRAJA"
+            ];
+
+            let idCounter = 1;
+
+            counts.forEach(item => {
+                // Optimal
+                for(let i = 0; i < item.opt; i++) {
+                    const jab = i < (item.jabOpt['Jabatan Struktural'] || 0) ? 'Jabatan Struktural' :
+                                (i < (item.jabOpt['Jabatan Struktural'] || 0) + (item.jabOpt['Jabatan Fungsional'] || 0) ? 'Jabatan Fungsional' : 'Jabatan Pelaksana');
+                    rawData.push({
+                        "No": idCounter++,
+                        "NAMA": `PEGAWAI OPTIMAL ${idCounter}`,
+                        "NIP": `19850101201001100${idCounter % 90 + 10}`,
+                        "JABATAN": jab === 'Jabatan Struktural' ? 'Kepala Bidang / Subbag' : (item.cat === 'ASN TIK' ? 'Pranata Komputer' : 'Fungsional Ahli'),
+                        "JENIS JABATAN": jab,
+                        "UNOR": unors[idCounter % unors.length],
+                        "KATEGORI": item.cat,
+                        "LITERASI DIGITAL": "Optimal"
+                    });
+                }
+                // Belum Optimal
+                for(let i = 0; i < item.nonOpt; i++) {
+                    const jab = (i % 3 === 0) ? 'Jabatan Fungsional' : ((i % 3 === 1) ? 'Jabatan Pelaksana' : 'Jabatan Struktural');
+                    rawData.push({
+                        "No": idCounter++,
+                        "NAMA": `PEGAWAI ASN ${idCounter}`,
+                        "NIP": `19780101200501100${idCounter % 90 + 10}`,
+                        "JABATAN": jab === 'Jabatan Struktural' ? 'Kepala Seksi / Kasubbag' : 'Pelaksana Staf / Guru / Tenaga Kesehatan',
+                        "JENIS JABATAN": jab,
+                        "UNOR": unors[idCounter % unors.length],
+                        "KATEGORI": item.cat,
+                        "LITERASI DIGITAL": "Belum Optimal"
+                    });
+                }
+            });
+
+            document.getElementById('dataStatusBadge').innerText = "Data Excel Bawaan (7,603 ASN Terdata)";
+        }
+
+        // Upload Excel File Handler
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                if (json && json.length > 0) {
+                    rawData = json.map((row, idx) => ({
+                        "No": row['No'] || idx + 1,
+                        "NAMA": row['NAMA'] || 'Tanpa Nama',
+                        "NIP": row['NIP'] || '-',
+                        "JABATAN": row['JABATAN'] || '-',
+                        "JENIS JABATAN": row['JENIS JABATAN'] || 'Lainnya',
+                        "UNOR": row['UNOR'] || 'Lainnya',
+                        "KATEGORI": row['KATEGORI'] || 'ASN Non-TIK',
+                        "LITERASI DIGITAL": row['LITERASI DIGITAL'] || 'Belum Optimal'
+                    }));
+
+                    document.getElementById('dataStatusBadge').innerText = `File Terupload (${rawData.length.toLocaleString()} ASN)`;
+                    updateDashboard();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function resetData() {
+            generateMockFullData();
+            document.getElementById('kategoriFilter').value = "ALL";
+            document.getElementById('literasiFilter').value = "ALL";
+            document.getElementById('searchInput').value = "";
+            updateDashboard();
+        }
+
+        // Apply Top Category Filter
+        function applyFilters() {
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const selectedCat = document.getElementById('kategoriFilter').value;
+            
+            if (selectedCat === 'ALL') {
+                filteredData = [...rawData];
+            } else {
+                filteredData = rawData.filter(d => d.KATEGORI === selectedCat);
+            }
+
+            renderKPIs();
+            renderCharts();
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Render KPI Cards
+        function renderKPIs() {
+            const total = filteredData.length;
+            const tik = filteredData.filter(d => d.KATEGORI === 'ASN TIK').length;
+            const tikSpesifik = filteredData.filter(d => d.KATEGORI === 'ASN Non-TIK Spesifik').length;
+            const manajerial = filteredData.filter(d => d.KATEGORI === 'ASN Manajerial').length;
+            const optimal = filteredData.filter(d => d['LITERASI DIGITAL'] === 'Optimal').length;
+
+            document.getElementById('kpiTotalASN').innerText = total.toLocaleString();
+            document.getElementById('kpiASNTIK').innerText = tik.toLocaleString();
+            document.getElementById('kpiPctTIK').innerText = total ? `${((tik/total)*100).toFixed(1)}% dari Total` : '0%';
+
+            document.getElementById('kpiASNTIKSpesifik').innerText = tikSpesifik.toLocaleString();
+            document.getElementById('kpiPctTIKSpesifik').innerText = total ? `${((tikSpesifik/total)*100).toFixed(1)}% dari Total` : '0%';
+
+            document.getElementById('kpiASNManajerial').innerText = manajerial.toLocaleString();
+            document.getElementById('kpiPctManajerial').innerText = total ? `${((manajerial/total)*100).toFixed(1)}% dari Total` : '0%';
+
+            document.getElementById('kpiOptimal').innerText = optimal.toLocaleString();
+            document.getElementById('kpiPctOptimal').innerText = total ? `${((optimal/total)*100).toFixed(1)}% Optimal` : '0%';
+        }
+
+        // Render All Charts
+        function renderCharts() {
+            // Chart 1: Komposisi Kategori
+            const catCounts = {};
+            filteredData.forEach(d => {
+                catCounts[d.KATEGORI] = (catCounts[d.KATEGORI] || 0) + 1;
+            });
+
+            const ctx1 = document.getElementById('chartKomposisi').getContext('2d');
+            if (chartKomposisiInst) chartKomposisiInst.destroy();
+            chartKomposisiInst = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catCounts),
+                    datasets: [{
+                        data: Object.values(catCounts),
+                        backgroundColor: ['#38bdf8', '#818cf8', '#fbbf24', '#34d399'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Chart 2: Literasi Digital per Kategori
+            const categories = ['ASN TIK', 'ASN Non-TIK', 'ASN Non-TIK Spesifik', 'ASN Manajerial'];
+            const optPerCat = categories.map(c => filteredData.filter(d => d.KATEGORI === c && d['LITERASI DIGITAL'] === 'Optimal').length);
+            const nonOptPerCat = categories.map(c => filteredData.filter(d => d.KATEGORI === c && d['LITERASI DIGITAL'] !== 'Optimal').length);
+
+            const ctx2 = document.getElementById('chartLiterasiKategori').getContext('2d');
+            if (chartLiterasiKategoriInst) chartLiterasiKategoriInst.destroy();
+            chartLiterasiKategoriInst = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: categories,
+                    datasets: [
+                        { label: 'Optimal', data: optPerCat, backgroundColor: '#10b981', borderRadius: 6 },
+                        { label: 'Belum Optimal', data: nonOptPerCat, backgroundColor: '#334155', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // Chart 3: Literasi per Jenis Jabatan
+            const jenisJab = ['Jabatan Fungsional', 'Jabatan Pelaksana', 'Jabatan Struktural'];
+            const optPerJab = jenisJab.map(j => filteredData.filter(d => d['JENIS JABATAN'] === j && d['LITERASI DIGITAL'] === 'Optimal').length);
+            const nonOptPerJab = jenisJab.map(j => filteredData.filter(d => d['JENIS JABATAN'] === j && d['LITERASI DIGITAL'] !== 'Optimal').length);
+
+            const ctx3 = document.getElementById('chartJenisJabatan').getContext('2d');
+            if (chartJenisJabatanInst) chartJenisJabatanInst.destroy();
+            chartJenisJabatanInst = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: ['Fungsional', 'Pelaksana', 'Struktural'],
+                    datasets: [
+                        { label: 'Optimal', data: optPerJab, backgroundColor: '#34d399', borderRadius: 4 },
+                        { label: 'Belum Optimal', data: nonOptPerJab, backgroundColor: '#f43f5e', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // Chart 4: Top UNOR Literasi Optimal
+            const unorMap = {};
+            filteredData.filter(d => d['LITERASI DIGITAL'] === 'Optimal').forEach(d => {
+                unorMap[d.UNOR] = (unorMap[d.UNOR] || 0) + 1;
+            });
+
+            const sortedUnors = Object.entries(unorMap).sort((a,b) => b[1] - a[1]).slice(0, 8);
+            const topLabels = sortedUnors.map(item => item[0].length > 25 ? item[0].substring(0,25) + '...' : item[0]);
+            const topValues = sortedUnors.map(item => item[1]);
+
+            const ctx4 = document.getElementById('chartTopUnor').getContext('2d');
+            if (chartTopUnorInst) chartTopUnorInst.destroy();
+            chartTopUnorInst = new Chart(ctx4, {
+                type: 'bar',
+                data: {
+                    labels: topLabels.length > 0 ? topLabels : ['Tidak ada data'],
+                    datasets: [{
+                        label: 'Jumlah ASN Optimal',
+                        data: topValues.length > 0 ? topValues : [0],
+                        backgroundColor: '#0284c7',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Table Search & Pagination Logic
+        function renderTable() {
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+            const litFilterVal = document.getElementById('literasiFilter').value;
+
+            const displayData = filteredData.filter(d => {
+                const matchesSearch = (d.NAMA || '').toLowerCase().includes(searchVal) || 
+                                      (d.NIP || '').toLowerCase().includes(searchVal) ||
+                                      (d.JABATAN || '').toLowerCase().includes(searchVal);
+                const matchesLit = (litFilterVal === 'ALL') || (d['LITERASI DIGITAL'] === litFilterVal);
+                return matchesSearch && matchesLit;
+            });
+
+            const totalRows = displayData.length;
+            const totalPages = Math.ceil(totalRows / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = Math.min(startIdx + pageSize, totalRows);
+            const pageData = displayData.slice(startIdx, endIdx);
+
+            const tbody = document.getElementById('asnTableBody');
+            tbody.innerHTML = '';
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500">Tidak ada data ditemukan</td></tr>`;
+            } else {
+                pageData.forEach(row => {
+                    const isOptimal = row['LITERASI DIGITAL'] === 'Optimal';
+                    const badgeLit = isOptimal 
+                        ? `<span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Optimal</span>`
+                        : `<span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-700/50 text-slate-400 border border-slate-700">Belum Optimal</span>`;
+
+                    let catBadgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                    if (row.KATEGORI === 'ASN TIK') catBadgeClass = 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+                    if (row.KATEGORI === 'ASN Manajerial') catBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                    if (row.KATEGORI === 'ASN Non-TIK Spesifik') catBadgeClass = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-800/40 transition-colors';
+                    tr.innerHTML = `
+                        <td class="py-3 px-4">
+                            <div class="font-semibold text-white">${row.NAMA}</div>
+                            <div class="text-[10px] text-slate-400">NIP: ${row.NIP}</div>
+                        </td>
+                        <td class="py-3 px-4 text-slate-300">
+                            <div>${row.JABATAN}</div>
+                            <div class="text-[10px] text-slate-500">${row['JENIS JABATAN']}</div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-medium border ${catBadgeClass}">
+                                ${row.KATEGORI}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-slate-400 max-w-xs truncate" title="${row.UNOR}">
+                            ${row.UNOR}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            ${badgeLit}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Pagination Controls Update
+            document.getElementById('tableInfo').innerText = totalRows > 0 
+                ? `Menampilkan ${startIdx + 1} - ${endIdx} dari ${totalRows.toLocaleString()} data`
+                : 'Menampilkan 0 data';
+            document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('btnPrev').disabled = currentPage === 1;
+            document.getElementById('btnNext').disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            renderTable();
+        }
+    </script>
+</body>
+</html>
